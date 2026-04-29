@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Human Typer</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0a0a0a;
+      color: #f0f0f0;
+      width: 280px;
+      padding: 16px;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #e02020;
+    }
+
+    /* ── Toggle switch ── */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #141414;
+      border: 1px solid #2a2a2a;
+      border-radius: 6px;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+      cursor: pointer;
+      transition: border-color 0.2s;
+      user-select: none;
+    }
+
+    .toggle-row:hover { border-color: #e0202066; }
+
+    .toggle-row.on { border-color: #e02020; }
+
+    .toggle-label {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .toggle-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #f0f0f0;
+    }
+
+    .toggle-sub {
+      font-size: 11px;
+      color: #555;
+    }
+
+    .toggle-row.on .toggle-sub { color: #e0202099; }
+
+    /* pill toggle */
+    .pill {
+      position: relative;
+      width: 40px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+
+    .pill input { opacity: 0; width: 0; height: 0; position: absolute; }
+
+    .pill-track {
+      position: absolute;
+      inset: 0;
+      border-radius: 11px;
+      background: #2a2a2a;
+      transition: background 0.2s;
+    }
+
+    .pill-thumb {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #555;
+      transition: transform 0.2s, background 0.2s;
+    }
+
+    .pill input:checked ~ .pill-track { background: #e02020; }
+    .pill input:checked ~ .pill-thumb { transform: translateX(18px); background: #fff; }
+
+    /* ── Sliders ── */
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .control-row { display: flex; flex-direction: column; gap: 5px; }
+
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: #888;
+    }
+
+    .control-label strong { color: #fff; font-weight: 600; }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 3px;
+      border-radius: 2px;
+      background: #2a2a2a;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #e02020;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover { background: #ff3a3a; }
+
+    /* ── Footer hint ── */
+    .hint {
+      margin-top: 14px;
+      font-size: 11px;
+      color: #333;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .hint.active { color: #e0202066; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Human Typer</h1>
+  </div>
+
+  <!-- Clipboard preview -->
+  <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+    <div id="clipboardPreview" style="flex: 1; background: #141414; border: 1px solid #2a2a2a; border-radius: 6px; padding: 10px; font-size: 11px; color: #888; max-height: 60px; overflow-y: auto; line-height: 1.4; white-space: pre-wrap; word-break: break-word;">
+      Loading clipboard…
+    </div>
+    <button id="refreshClipBtn" style="padding: 6px 10px; background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 4px; color: #e02020; font-size: 12px; font-weight: 600; cursor: pointer; flex-shrink: 0;">↻</button>
+  </div>
+
+  <!-- ON/OFF toggle -->
+  <div class="toggle-row" id="toggleRow">
+    <div class="toggle-label">
+      <span class="toggle-title" id="toggleTitle">Disabled</span>
+      <span class="toggle-sub"  id="toggleSub">Paste will behave normally</span>
+    </div>
+    <label class="pill" id="pillLabel">
+      <input type="checkbox" id="enabledToggle" />
+      <span class="pill-track"></span>
+      <span class="pill-thumb"></span>
+    </label>
+  </div>
+
+  <!-- Settings -->
+  <div class="controls">
+    <div class="control-row">
+      <div class="control-label">
+        <span>Typing speed</span>
+        <strong id="wpmLabel">60 WPM</strong>
+      </div>
+      <input type="range" id="wpmSlider" min="10" max="200" value="60" step="5" />
+    </div>
+
+    <div class="control-row">
+      <div class="control-label">
+        <span>Error rate</span>
+        <strong id="errorLabel">5%</strong>
+      </div>
+      <input type="range" id="errorSlider" min="0" max="40" value="5" step="1" />
+    </div>
+
+    <div class="control-row">
+      <div class="control-label">
+        <span>Speed variance</span>
+        <strong id="varianceLabel">Medium</strong>
+      </div>
+      <input type="range" id="varianceSlider" min="0" max="2" value="1" step="1" />
+    </div>
+  </div>
+
+  <div class="hint" id="hint">Enable above, then paste anywhere on the page.</div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
