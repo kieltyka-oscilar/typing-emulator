@@ -180,7 +180,19 @@ async function typeText(el, text, config) {
 
 // ─── Paste interception ───────────────────────────────────────────────────────
 document.addEventListener('paste', async (e) => {
-  // Read state fresh from storage on every paste — no stale in-memory state
+  // ── SYNCHRONOUS phase — must happen before any await ──────────────────────
+  // Browsers clear clipboardData and commit the default paste action once the
+  // synchronous portion of the event handler returns. We must capture the text
+  // and block the default paste NOW, then check storage asynchronously after.
+  if (!isEditable(e.target)) return;
+
+  const text = (e.clipboardData || window.clipboardData)?.getData('text/plain');
+  if (!text) return;
+
+  e.preventDefault();
+  e.stopImmediatePropagation();
+
+  // ── ASYNC phase — safe to await now that the event is captured ────────────
   let settings;
   try {
     settings = await chrome.storage.local.get(['enabled', 'wpm', 'errorRate', 'variance']);
@@ -188,20 +200,34 @@ document.addEventListener('paste', async (e) => {
     return;
   }
 
-  if (!settings.enabled) return;
-  if (!isEditable(e.target)) return;
+  // If not enabled, we already blocked the native paste above, so we need to
+  // manually insert the text as a normal paste to restore default behaviour.
+  if (!settings.enabled) {
+    const el = e.target;
+    if (isContentEditable(el)) {
+      document.execCommand('insertText', false, text);
+    } else {
+      const start  = el.selectionStart ?? el.value.length;
+      const end    = el.selectionEnd   ?? el.value.length;
+      const before = el.value.slice(0, start);
+      const after  = el.value.slice(end);
+      const setter = getNativeSetter(el);
+      if (setter) setter.call(el, before + text + after);
+      else        el.value = before + text + after;
+      el.setSelectionRange(start + text.length, start + text.length);
+      el.dispatchEvent(new InputEvent('input', {
+        inputType: 'insertText', data: text,
+        bubbles: true, cancelable: false, composed: true,
+      }));
+    }
+    return;
+  }
 
   // Stop any in-progress typing and start fresh
   if (isTyping) {
     stopTyping = true;
     await sleep(60);
   }
-
-  const text = e.clipboardData.getData('text/plain');
-  if (!text) return;
-
-  e.preventDefault();
-  e.stopImmediatePropagation();
 
   const config = {
     wpm:       settings.wpm       ?? 60,
